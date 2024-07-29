@@ -18,13 +18,22 @@
     └── certbot/
 ```
 
+## REQUISITOS:
+- Mattermost open source
+- deve conter focalboard integrado
+- deve conter gerenciamento, planejamento e acompanhamento de projetos de desenvolvimento de software CI/CD
+- deve conter armazenamento de documentos da equipe
+- deve conter kanbam
+- deve conter serviço de BOT com inteligência artificial integrada
+
 ## Incremento Mattermost:
 
 1. adicionar configurações para otimizar o desempenho do Mattermost.
 2. incluir a configuração do SMTP para envio de e-mails.
 3. Adicionar opção para habilitar ou desabilitar recursos como Elasticsearch e Focalboard.
 4. incluir um serviço de busca, como Elasticsearch, para melhorar a pesquisa em grandes volumes de mensagens..
-3. Incluir script de backup automático para o banco de dados e arquivos."
+5. Incluir script de backup automático para o banco de dados e arquivos."
+6. 
 
 ## Incremento em Docker:
 1. Vamos usar Docker Swarm ou Kubernetes para melhor orquestração e escalabilidade.
