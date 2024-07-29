@@ -1,5 +1,6 @@
 ## Árvore de Diretorios sem Incremento 
 
+```
 /mattermost/
 ├── docker-compose.yml
 ├── .env
@@ -15,6 +16,7 @@
     ├── mattermost/
     ├── nginx/
     └── certbot/
+```
 
 ## Incremento Mattermost:
 
