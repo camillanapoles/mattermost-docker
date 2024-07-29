@@ -20,25 +20,40 @@
 
 ## Incremento Mattermost:
 
-1. incluir a configuração do SMTP para envio de e-mails.
-2. Adicionar opção para habilitar ou desabilitar recursos como Elasticsearch e Focalboard.
+1. adicionar configurações para otimizar o desempenho do Mattermost.
+2. incluir a configuração do SMTP para envio de e-mails.
+3. Adicionar opção para habilitar ou desabilitar recursos como Elasticsearch e Focalboard.
+4. incluir um serviço de busca, como Elasticsearch, para melhorar a pesquisa em grandes volumes de mensagens..
 3. Incluir script de backup automático para o banco de dados e arquivos."
 
 ## Incremento em Docker:
-1. Usar Docker Secrets para todas as senhas, não apenas algumas.
-2. Adicionar health checks para todos os serviços.
-3. Implementar limites de recursos para todos os containers."
+1. Vamos usar Docker Swarm ou Kubernetes para melhor orquestração e escalabilidade.
+2. Precisamos adicionar um serviço de monitoramento, como Prometheus e Grafana.
+3. Usar Docker Secrets para todas as senhas, não apenas algumas.
+4. Adicionar health checks para todos os serviços.
+5. Implementar limites de recursos para todos os containers."
 
 ## Incremento DevOps e CI/CD
 
-1. Adicionar opção para configurar webhooks de integração com GitLab/GitHub.
-2. Incluir configuração básica para pipelines de CI/CD no GitLab.
-3. Adicionar script para inicialização e configuração automática do Vault.
+1. Configurar integração com GitLab ou GitHub para automação de código.
+2. Adicionar opção para configurar webhooks de integração com GitLab/GitHub.
+3. Adicionar Jenkins ou GitLab CI para pipelines de CI/CD.
+4. Implementar Vault da HashiCorp para gerenciamento seguro de segredos."
+5. Adicionar script para inicialização e configuração automática do Vault.
 
 
 # Mattermost Enterprise Stack
 
-Este projeto implementa uma stack completa de serviços para suportar uma instalação empresarial do Mattermost, incluindo ferramentas de colaboração, monitoramento, CI/CD e segurança.
+Este projeto implementa uma stack completa de serviços para suportar uma instalação da versão open Source Self-Hostes do Mattermost, incluindo ferramentas de colaboração, monitoramento, CI/CD , segurança.
+objetivo: 
+- gerenciamento de times
+- gerenciamento de desenvolvimento de projetos de desenvolvimento de software 
+- gestao de documentos e entregas
+- comunicação da equipe
+- planejamento e monitoramento do desenvolvimento de software
+- metodologia devops CI/CD
+- método ágil para de entregas incrementais
+ 
 
 ## Sumário
 
