@@ -1,5 +1,4 @@
 #!/bin/bash
-#!/bin/bash
 
 # Cores para output
 RED='\033[0;31m'
@@ -23,7 +22,6 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-
 # Função para imprimir mensagens de erro
 error() {
     echo -e "${RED}Erro: $1${NC}" >&2
@@ -41,24 +39,20 @@ warning() {
 }
 
 # Verificar se o Docker está instalado
-if ! command -v docker &> /dev/null; then
+if ! command_exists docker; then
     error "Docker não está instalado. Por favor, instale o Docker antes de continuar."
 fi
 
 # Verificar se o Docker Compose está instalado
-if ! command -v docker-compose &> /dev/null; then
+if ! command_exists docker-compose; then
     error "Docker Compose não está instalado. Por favor, instale o Docker Compose antes de continuar."
 fi
-
-
 
 # Remover pastas anteriores
 warning "Removendo pastas anteriores..."
 docker-compose down 
 sudo rm -rf volumes
 sudo rm -f .env docker-compose.yml
-
-
 
 # Verificar se o script está sendo executado como root
 if [ "$EUID" -ne 0 ]; then
@@ -72,13 +66,12 @@ generate_password() {
 }
 
 # Gerar senhas aleatórias
-MM_PASSWORD=$(openssl rand -base64 32)
-POSTGRES_PASSWORD=$(openssl rand -base64 32)
+MM_PASSWORD=$(generate_password)
+POSTGRES_PASSWORD=$(generate_password)
 
 # Criar arquivo .env
 cat << EOF > .env
 # Configurações Mattermost
-
 MATTERMOST_IMAGE=mattermost/mattermost-team-edition:latest
 MM_USERNAME=mmuser
 MM_PASSWORD=$MM_PASSWORD
@@ -91,7 +84,6 @@ POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 POSTGRES_DB=mattermost
 
 # Configurações Nginx
-#NGINX_IMAGE=nginx:latest
 DOCKER_NGINX_IMAGE=nginx:1.25.1-alpine
 
 # Configurações Certbot
@@ -104,11 +96,6 @@ WATCHTOWER_IMAGE=containrrr/watchtower
 DOMAIN=team.cnmfs.me
 EMAIL=dev@cnmfs.me
 
-# Criar arquivo .env
-cat << EOF > .env
-
-
-DOCKER_POSTGRES_IMAGE=postgres:15.3-alpine
 # Definir variáveis
 DOMAIN="dev.cnmfs.me"
 EMAIL="admin@cnmfs.me"
@@ -118,10 +105,8 @@ POSTGRES_DB="mattermost"
 ENABLE_ELASTICSEARCH=true
 ENABLE_FOCALBOARD=true
 EOF
-EOF 
 
 success "Arquivo .env criado com sucesso."
-
 
 # Instalar dependências
 apt-get update
@@ -129,7 +114,7 @@ apt-get install -y docker.io docker-compose curl
 
 # Criar diretórios necessários
 echo "Criar diretórios necessários..."
-mkdir -p config/nginx config/mattermost volumes/db volumes/mattermost/data volumes/mattermost/logs volumes/mattermost/plugins volumes/mattermost/client-plugins volumes/nginx volumes/certbot/conf volumes/certbot/www volumes/elasticsearch volumes/prometheus volumes/grafana volumes/gitlab/{config,logs,data} volumes/jenkins_home volumes/vault secrets
+mkdir -p config/nginx config/mattermost volumes/db volumes/mattermost/data volumes/mattermost/logs volumes/mattermost/plugins volumes/mattermost/client-plugins volumes/nginx volumes/certbot/conf volumes/certbot/www volumes/elasticsearch volumes/prometheus volumes/grafana volumes/gitlab/{config,logs,data} volumes/jenkins_home volumes/vault secrets backups
 
 # Gerar senhas e salvar em arquivos de secrets
 echo "mmuser" > ./secrets/db_user.txt
@@ -142,7 +127,7 @@ generate_password > ./secrets/mattermost_smtp_password.txt
 
 # Criar arquivo docker-compose.yml
 cat > docker-compose.yml <<EOL
-
+version: '3.8'
 
 services:
   db:
@@ -151,14 +136,14 @@ services:
     environment:
       - POSTGRES_USER_FILE=/run/secrets/db_user
       - POSTGRES_PASSWORD_FILE=/run/secrets/db_password
-      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_DB=\${POSTGRES_DB}
     volumes:
       - ./volumes/db:/var/lib/postgresql/data
     networks:
       - mattermost-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U \$\$(cat /run/secrets/db_user) -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U \$\$(cat /run/secrets/db_user) -d \${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -169,22 +154,26 @@ services:
           memory: 1G
 
   mattermost:
-    image: mattermost/mattermost-team-edition:${MATTERMOST_VERSION}
+    image: mattermost/mattermost-team-edition:\${MATTERMOST_VERSION}
     container_name: mattermost
     depends_on:
       - db
     environment:
       - MM_USERNAME_FILE=/run/secrets/db_user
       - MM_PASSWORD_FILE=/run/secrets/db_password
-      - MM_DBNAME=${POSTGRES_DB}
-      - MM_SQLSETTINGS_DATASOURCE=postgres://\$\$(cat /run/secrets/db_user):\$\$(cat /run/secrets/db_password)@db:5432/${POSTGRES_DB}?sslmode=disable&connect_timeout=10
-      - MM_SERVICESETTINGS_SITEURL=https://${DOMAIN}
+      - MM_DBNAME=\${POSTGRES_DB}
+      - MM_SQLSETTINGS_DATASOURCE=postgres://\$\$(cat /run/secrets/db_user):\$\$(cat /run/secrets/db_password)@db:5432/\${POSTGRES_DB}?sslmode=disable&connect_timeout=10
+      - MM_SERVICESETTINGS_SITEURL=https://\${DOMAIN}
       - MM_EMAILSETTINGS_SMTPSERVER=smtp.example.com
       - MM_EMAILSETTINGS_SMTPPORT=587
       - MM_EMAILSETTINGS_SMTPUSERNAME=mattermost@example.com
       - MM_EMAILSETTINGS_SMTPPASSWORD_FILE=/run/secrets/mattermost_smtp_password
       - MM_EMAILSETTINGS_ENABLESMTPAUTH=true
       - MM_EMAILSETTINGS_CONNECTIONSECURITY=TLS
+      - MM_ELASTICSEARCHSETTINGS_ENABLEINDEXING=\${ENABLE_ELASTICSEARCH}
+      - MM_FOCALBOARDSETTINGS_ENABLE=\${ENABLE_FOCALBOARD}
+      - MM_INTEGRATIONSETTINGS_ENABLEINCOMINGWEBHOOKS=true
+      - MM_INTEGRATIONSETTINGS_ENABLEOUTGOINGWEBHOOKS=true
     volumes:
       - ./config/mattermost:/mattermost/config
       - ./volumes/mattermost/data:/mattermost/data
@@ -206,7 +195,7 @@ services:
           memory: 4G
 
   nginx:
-    image: \${NGINX_IMAGE}
+    image: \${DOCKER_NGINX_IMAGE}
     container_name: nginx
     ports:
       - "80:80"
@@ -219,7 +208,6 @@ services:
     command: "/bin/sh -c 'while :; do sleep 6h & wait \$\${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
     depends_on:
       - mattermost
-   
     networks:
       - mattermost-network
     restart: unless-stopped
@@ -241,7 +229,7 @@ services:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait \$\${!}; done;'"
-    command: certonly --webroot -w /var/www/certbot --force-renewal --email ${EMAIL} -d ${DOMAIN} --agree-tos
+    command: certonly --webroot -w /var/www/certbot --force-renewal --email \${EMAIL} -d \${DOMAIN} --agree-tos
     depends_on:
       - nginx
 
@@ -310,10 +298,10 @@ services:
   gitlab:
     image: gitlab/gitlab-ce:latest
     container_name: mattermost-gitlab
-    hostname: gitlab.${DOMAIN}
+    hostname: gitlab.\${DOMAIN}
     environment:
       GITLAB_OMNIBUS_CONFIG: |
-        external_url 'https://gitlab.${DOMAIN}'
+        external_url 'https://gitlab.\${DOMAIN}'
         gitlab_rails['initial_root_password'] = File.read('/run/secrets/gitlab_root_password').strip
     ports:
       - "8443:443"
@@ -392,6 +380,8 @@ secrets:
     file: ./secrets/mattermost_smtp_password.txt
 EOL
 
+success "Arquivo docker-compose.yml criado com sucesso."
+
 # Criar nginx.conf temporário (sem SSL)
 mkdir -p ./volumes/web/nginx
 cat << EOF > ./volumes/web/nginx/nginx.conf
@@ -402,7 +392,7 @@ events {
 http {
     server {
         listen 80;
-        server_name $DOMAIN;
+        server_name \$DOMAIN;
 
         location /.well-known/acme-challenge/ {
             root /var/www/certbot;
@@ -415,7 +405,7 @@ http {
 }
 EOF
 
-success "Arquivo docker-compose.yml criado com sucesso."
+success "Arquivo nginx/nginx.conf criado com sucesso."
 
 # Criar arquivo de configuração do Nginx
 cat << EOF > nginx/nginx.conf
@@ -440,12 +430,7 @@ http {
     access_log  /var/log/nginx/access.log  main;
 
     sendfile        on;
-    #tcp_nopush     on;
-
     keepalive_timeout  65;
-
-    #gzip  on;
-
     include /etc/nginx/conf.d/*.conf;
 }
 EOF
@@ -498,16 +483,6 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout nginx/conf.d/key.pem
 
 success "Certificado SSL temporário gerado com sucesso."
 
-# Solicitar informações do usuário
-#read -p "Digite o domínio para o Mattermost (ex: mattermost.seudominio.com): " 
-#read -p "Digite o endereço de e-mail para o Let's Encrypt: " email
-
-# Atualizar o arquivo .env com as informações fornecidas
-#sed -i "s/DOMAIN=.*/DOMAIN=$domain/" .env
-#sed -i "s/EMAIL=.*/EMAIL=$email/" .env
-
-success "Arquivo .env atualizado com o domínio e e-mail fornecidos."
-
 # Iniciar os contêineres
 docker-compose up -d
 
@@ -521,30 +496,87 @@ fi
 # Instruções finais
 echo "==============================================="
 echo "Instalação concluída!"
-echo "Por favor, configure seu DNS para apontar $domain para o IP deste servidor."
-echo "Depois disso, você poderá acessar o Mattermost em https://$domain"
+echo "Por favor, configure seu DNS para apontar \${DOMAIN} para o IP deste servidor."
+echo "Depois disso, você poderá acessar o Mattermost em https://\${DOMAIN}"
 echo "Para obter um certificado SSL válido, execute:"
-echo "docker-compose run --rm certbot certonly --webroot --webroot-path /var/www/certbot -d $domain"
+echo "docker-compose run --rm certbot certonly --webroot --webroot-path /var/www/certbot -d \${DOMAIN}"
 echo "Em seguida, atualize o arquivo nginx/conf.d/mattermost.conf com os novos caminhos do certificado e reinicie o Nginx."
 echo "==============================================="
-."
 
+# Backup automático do banco de dados e arquivos
+echo "Criando script de backup automático..."
 
-# Criar arquivo de configuração do Mattermost
-cat > config/mattermost/config.json <<EOL
-{
-    "ServiceSettings": {
-        "SiteURL": "https://${DOMAIN}",
-        "ListenAddress": ":8065",
-        "ConnectionSecurity": "",
-        "TLSCertFile": "",
-        "TLSKeyFile": "",
-        "UseLetsEncrypt": false
-    },
-    "SqlSettings": {
-        "DriverName": "postgres",
-        "DataSource": "postgres://\${MM_USERNAME}:\${MM_PASSWORD}@db:5432/\${MM_DBNAME}?sslmode=disable&connect_timeout=10"
-    },
-    "LogSettings": {
-        "EnableConsole": true,
-        "ConsoleLevel": "INFO
+cat << 'EOF' > backup.sh
+#!/bin/bash
+
+BACKUP_DIR="./backups"
+DB_BACKUP="\${BACKUP_DIR}/db_backup_\$(date +%Y%m%d%H%M%S).sql"
+FILES_BACKUP="\${BACKUP_DIR}/files_backup_\$(date +%Y%m%d%H%M%S).tar.gz"
+
+# Criar diretório de backup se não existir
+mkdir -p \${BACKUP_DIR}
+
+# Backup do banco de dados PostgreSQL
+docker exec mattermost-db pg_dump -U mmuser mattermost > \${DB_BACKUP}
+
+# Backup dos arquivos do Mattermost
+tar -czvf \${FILES_BACKUP} volumes/mattermost
+
+echo -e "${GREEN}Backup concluído! Arquivos de backup salvos em \${BACKUP_DIR}.${NC}"
+EOF
+
+chmod +x backup.sh
+
+echo "Script de backup automático criado com sucesso."
+
+# Criar arquivo de configuração do GitLab CI/CD
+echo "Criando configuração básica para pipelines de CI/CD no GitLab..."
+
+cat << 'EOF' > .gitlab-ci.yml
+stages:
+  - build
+  - test
+  - deploy
+
+build:
+  stage: build
+  script:
+    - echo "Building the project..."
+
+test:
+  stage: test
+  script:
+    - echo "Running tests..."
+
+deploy:
+  stage: deploy
+  script:
+    - echo "Deploying the project..."
+EOF
+
+success "Arquivo .gitlab-ci.yml criado com sucesso."
+
+# Criar script de configuração do Vault
+echo "Criando script de inicialização e configuração automática do Vault..."
+
+cat << 'EOF' > configure_vault.sh
+#!/bin/bash
+
+VAULT_ADDR="http://127.0.0.1:8200"
+VAULT_TOKEN=$(cat ./secrets/vault_root_token.txt)
+
+# Login no Vault
+vault login $VAULT_TOKEN
+
+# Habilitar o secret engine kv
+vault secrets enable -path=secret kv
+
+# Criar um segredo de exemplo
+vault kv put secret/my-secret value="my secret value"
+
+echo -e "${GREEN}Vault configurado com sucesso.${NC}"
+EOF
+
+chmod +x configure_vault.sh
+
+echo "Script de configuração do Vault criado com sucesso."
